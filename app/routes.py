@@ -6,7 +6,7 @@ main = Blueprint("main", __name__)
 
 @main.route("/")
 def index():
-    return jsonify({"status": "ok", "message": "Baza API is running"})
+    return jsonify({"status": "ok", "message": "Baza API is running (test)"})
 
 @main.route("/baza", methods=["GET"])
 def get_baza():
