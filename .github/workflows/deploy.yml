@@ -38,6 +38,7 @@ jobs:
             docker rm flask-app || true
             docker run -d \
               --name flask-app \
+              --network flask-network \
               -p 5000:5000 \
               -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
               ${{ secrets.DOCKER_USERNAME }}/flask-cicd-pipeline:latest
