@@ -1,6 +1,17 @@
-# Projekt 3 — Flask CI/CD Pipeline
+# Projekt 3 — Flask CI/CD Pipeline (Self-Hosted Runner)
 
-Rozbudowa projektu 2 o automatyczny pipeline CI/CD. Każdy push na branch `master` automatycznie buduje obraz Dockera, pushuje go na Docker Hub i deployuje aplikację na zdalny serwer w chmurze Oracle Cloud. Aplikacja działa publicznie w internecie bez żadnej ręcznej interwencji.
+Wersja projektu 3 z self-hosted runnerem działającym bezpośrednio na serwerze Oracle Cloud. W przeciwieństwie do brancha `master` gdzie pipeline wykonuje się na maszynach GitHuba, tutaj GitHub wysyła zadania do runnera zainstalowanego na docelowym serwerze.
+
+Główna różnica praktyczna: brak osobnego kroku SSH do deploymentu.  Runner już jest na serwerze więc komendy `docker pull` i `docker run` wykonują się lokalnie.
+
+## Porównanie podejść
+
+| | master | self-hosted-runner |
+|---|---|---|
+| Runner | GitHub (ubuntu-latest) | Serwer Oracle Cloud |
+| Deploy | przez SSH | lokalnie na serwerze |
+| Koszt minut GitHub Actions | tak | nie |
+| Wymagania | brak | runner zainstalowany na serwerze |
 
 ## Jak działa pipeline
 
@@ -10,21 +21,43 @@ flowchart LR
     gh[GitHub]
     actions[GitHub Actions]
     dh[Docker Hub]
-    srv([Oracle Cloud])
+    srv([Oracle Cloud / Runner])
 
     dev -->|git push| gh
     gh -->|wyzwala| actions
     actions -->|buduje i pushuje obraz| dh
     dh -->|docker pull| srv
-    actions -->|deploy przez SSH| srv
+    actions -->|wykonuje lokalnie| srv
+```
+
+## Konfiguracja self-hosted runnera
+
+1. Wejdź na GitHubie → **Settings → Actions → Runners → New self-hosted runner**
+2. Wybierz **Linux x64** i wykonaj komendy które GitHub pokazuje na serwerze
+3. Uruchom runner jako serwis systemowy:
+```bash
+sudo ./svc.sh install
+sudo ./svc.sh start
+```
+4. Upewnij się że masz zainstalowany Docker Buildx:
+```bash
+sudo apt install docker-buildx -y
+```
+5. Jeśli serwer ma mało RAM (poniżej 2GB), dodaj swap:
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
 ## Wymagania
 
 - Python 3.10+ i pip (do uruchomienia lokalnego)
 - LUB Docker i Docker Compose (do uruchomienia w kontenerze)
-- Konto Docker Hub (do CI/CD)
-- Serwer z Linuxem i Dockerem (do deploymentu)
+- Konto Docker Hub
+- Serwer z Linuxem, Dockerem i zainstalowanym GitHub Actions Runner
 
 ## Jak uruchomić lokalnie
 
@@ -64,20 +97,13 @@ docker compose up --build
 
 ## Konfiguracja CI/CD
 
-Aby uruchomić własny pipeline, dodaj następujące sekrety w ustawieniach repozytorium na GitHubie (Settings → Secrets and variables → Actions):
-
 | Sekret | Opis |
 |--------|------|
 | `DOCKER_USERNAME` | Nazwa użytkownika Docker Hub |
 | `DOCKER_PASSWORD` | Hasło do konta Docker Hub |
-| `SERVER_IP` | Publiczny adres IP serwera |
-| `SERVER_USER` | Nazwa użytkownika na serwerze (np. `ubuntu`) |
-| `SSH_PRIVATE_KEY` | Prywatny klucz SSH do połączenia z serwerem |
 | `DATABASE_URL` | Pełny adres połączenia z bazą danych |
 
-## Zmienne środowiskowe (uruchomienie lokalne)
-
-Stwórz plik `.env` na podstawie `.env.example`:
+## Zmienne środowiskowe
 
 | Zmienna | Opis |
 |---------|------|
@@ -96,7 +122,4 @@ Stwórz plik `.env` na podstawie `.env.example`:
 
 ## Działająca aplikacja
 
-Aplikacja jest publicznie dostępna pod adresem:
-
 **http://152.70.46.21:5000**
-
